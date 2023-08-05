@@ -1,11 +1,7 @@
 {
-  "singleQuote": true,
   "overrides": [
     {
-      "files": ["**/*.sol", "**/*.css", "**/*.scss", "**/*.html"],
-      "options": {
-        "singleQuote": false
-      }
+      "files": ["**/*.sol", "**/*.css", "**/*.scss", "**/*.html"]
     }
   ],
   "tabWidth": 2,
