@@ -21,9 +21,14 @@ contract SupplyChain is Ownable, AccessControl {
   // Define a public mapping 'items' that maps the UPC to an Item.
   mapping(uint => Item) public items;
 
+  struct ItemHistory {
+    string txHash;
+    uint timestamp;
+  }
+
   // Define a public mapping 'itemsHistory' that maps the UPC to an array of TxHash,
   // that track its journey through the supply chain -- to be sent from DApp.
-  mapping(uint => string[]) public itemsHistory;
+  mapping(uint => ItemHistory[]) public itemsHistory;
 
   // Define enum 'Status' with the following values:
   enum Status {
@@ -110,7 +115,7 @@ contract SupplyChain is Ownable, AccessControl {
     string memory _originFarmLatitude,
     string memory _originFarmLongitude,
     string memory _productNotes
-  ) public onlyRole(FARMER_ROLE) {
+  ) public onlyOwner onlyRole(FARMER_ROLE) {
     // Add the new item as part of Harvest
     items[_upc] = Item({
       sku: sku,
@@ -140,7 +145,7 @@ contract SupplyChain is Ownable, AccessControl {
   // Define a function 'processItem' that allows a farmer to mark an item 'Processed'
   function processItem(
     uint _upc
-  ) public onlyStatus(_upc, Status.Harvested) onlyRole(FARMER_ROLE) {
+  ) public onlyStatus(_upc, Status.Harvested) onlyOwner onlyRole(FARMER_ROLE) {
     // Update the appropriate fields
     items[_upc].itemStatus = Status.Processed;
 
@@ -150,7 +155,7 @@ contract SupplyChain is Ownable, AccessControl {
   // Define a function 'packItem' that allows a farmer to mark an item 'Packed'
   function packItem(
     uint _upc
-  ) public onlyStatus(_upc, Status.Processed) onlyRole(FARMER_ROLE) {
+  ) public onlyStatus(_upc, Status.Processed) onlyOwner onlyRole(FARMER_ROLE) {
     // Update the appropriate fields
     items[_upc].itemStatus = Status.Packed;
 
@@ -161,7 +166,7 @@ contract SupplyChain is Ownable, AccessControl {
   function sellItem(
     uint _upc,
     uint _price
-  ) public onlyStatus(_upc, Status.Packed) onlyRole(FARMER_ROLE) {
+  ) public onlyStatus(_upc, Status.Packed) onlyOwner onlyRole(FARMER_ROLE) {
     // Update the appropriate fields
     items[_upc].itemStatus = Status.ForSale;
     items[_upc].productPrice = _price;
@@ -176,6 +181,7 @@ contract SupplyChain is Ownable, AccessControl {
     public
     payable
     onlyStatus(_upc, Status.ForSale)
+    onlyOwner
     onlyRole(DISTRIBUTOR_ROLE)
     paidEnough(items[_upc].productPrice)
     maybeRefundDifference(_upc)
@@ -194,7 +200,7 @@ contract SupplyChain is Ownable, AccessControl {
   // Define a function 'shipItem' that allows the distributor to mark an item 'Shipped'
   function shipItem(
     uint _upc
-  ) public onlyStatus(_upc, Status.Sold) onlyRole(DISTRIBUTOR_ROLE) {
+  ) public onlyStatus(_upc, Status.Sold) onlyOwner onlyRole(DISTRIBUTOR_ROLE) {
     // Update the appropriate fields
     items[_upc].itemStatus = Status.Shipped;
 
@@ -207,6 +213,7 @@ contract SupplyChain is Ownable, AccessControl {
   )
     public
     onlyStatus(_upc, Status.Shipped)
+    onlyOwner
     onlyRole(RETAILER_ROLE)
   // Access Control List enforced by calling Smart Contract / DApp
   {
@@ -225,6 +232,7 @@ contract SupplyChain is Ownable, AccessControl {
     public
     payable
     onlyStatus(_upc, Status.Received)
+    onlyOwner
     onlyRole(CONSUMER_ROLE)
     paidEnough(items[_upc].productPrice)
     maybeRefundDifference(_upc)
@@ -319,5 +327,25 @@ contract SupplyChain is Ownable, AccessControl {
       retailerID,
       consumerID
     );
+  }
+
+  function addItemToHistory(
+    uint _upc,
+    string memory _hash
+  )
+    public
+    onlyOwner
+    onlyRole(FARMER_ROLE)
+    onlyRole(DISTRIBUTOR_ROLE)
+    onlyRole(RETAILER_ROLE)
+    onlyRole(CONSUMER_ROLE)
+  {
+    itemsHistory[_upc].push(
+      ItemHistory({txHash: _hash, timestamp: block.timestamp})
+    );
+  }
+
+  fallback() external payable {
+    revert();
   }
 }

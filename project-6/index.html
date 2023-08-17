@@ -1,108 +1,497 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fair Trade Coffee</title>
-    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
-    <link rel="stylesheet" type="text/css" href="style.css">
-</head>
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css"
+    />
+  </head>
 
-<body>
-    <div class="container">
-        <h1 style="text-align: center;">Fair Trade Coffee</h1>
-        <hr>
-        <p style="text-align: center;">Prove the authenticity of coffee using the Ethereum blockchain.</p>
-    </div>
+  <body>
+    <div
+      class="container"
+      style="max-width: 50em; margin-left: auto; margin-right: auto"
+    >
+      <h1 style="text-align: center">Fair Trade Coffee</h1>
+      <hr />
+      <p style="text-align: center">
+        Prove the authenticity of coffee using the Ethereum blockchain.
+      </p>
 
-    <div id="ftc-harvest">
-        <h2>Product Overview</h2>
-        <div class="form-group">
-            SKU
-            <br>
-            <input class="input-field" type="number" id="sku" name="sku" value=1><br>
-            UPC
-            <br>
-            <input type="number" id="upc" name="upc" value=1><br>
-            Current Owner ID
-            <br>
-            <input type="text" id="ownerID" name="ownerID" value="0x963865f57804b38459dd4b2da2f760211a200438" size="50"><br>
-            <div class=button-div>
-                <button class="btn-fetchOne" id="button" type="button" data-id="9">Fetch Data 1</button>
-                <button class="btn-fetchTwo" id="button" type="button" data-id="10">Fetch Data 2</button>
-            </div>
-        </div>
-        <div class=form-break></div>
-        <h2>Farm Details</h2>
-        <div class="form-group">
-            Farmer ID
-            <br>
-            <input type="text" id="originFarmerID" name="originFarmerID" value="0x99c289eb2aacec289631a5ddf62cf27a63d4494f"
-                size="50"><br>
-            Farm Name
-            <br>
-            <input type="text" id="originFarmName" name="originFarmName" value="John Doe"><br>
-            Farm Information
-            <br>
-            <input type="text" id="originFarmInformation" name="originFarmInformation" value="Yarra Valley"><br>
-            Farm Latitude
-            <br>
-            <input type="text" id="originFarmLatitude" name="originFarmLatitude" value="-38.239770"><br>
-            Farm Longitude
-            <br>
-            <input type="text" id="originFarmLongitude" name="originFarmLongitude" value="144.341490"><br>
-            <br>
-            <button class="btn-harvest" id="button" type="button" data-id="1">Harvest</button>
-            <button class="btn-process" id="button" type="button" data-id="2">Process</button>
-            <button class="btn-pack" id="button" type="button" data-id="3">Pack</button>
-            <button class="btn-forsale" id="button" type="button" data-id="4">ForSale</button>
-        </div>
-        <div class=form-break></div>
-        <h2>Product Details</h2>
-        <div class="form-group">
-            Product Notes
-            <br>
-            <input type="text" id="productNotes" name="productNotes" value="Best beans for Espresso" size="60"><br>
-            Product Price
-            <br>
-            <input type="number" id="productPrice" name="productPrice" value=1>ETH<br>
-            Distributor ID
-            <br>
-            <input type="text" id="distributorID" name="distributorID" value="0xf1b1bcd24dad92303dd9fe78be639f7bcf9c238d"
-                size="50">
-            <br>
-            Retailer ID
-            <br>
-            <input type="text" id="retailerID" name="retailerID" value="0x0fb2bfefd526966c87efa19f6693d50971763fc2"
-                size="50"><br>
-            Consumer ID
-            <br>
-            <input type="text" id="consumerID" name="consumerID" value="0x5d777e9127b28fb119e81a6304278a0a21bef1c4"
-                size="50"><br>
-            <br>
-            <button class="btn-buy" id="button" type="button" data-id="5">Buy</button>
-            <button class="btn-ship" id="button" type="button" data-id="6">Ship</button>
-            <button class="btn-receive" id="button" type="button" data-id="7">Receive</button>
-            <button class="btn-purchase" id="button" type="button" data-id="8">Purchase</button>
-        </div>
-        <div class=form-break></div>
-        <hr>
-    </div>
-
-    <h2>Transaction History<span id="ftc-history"></span></h2>
-    <div>
-        <ul id="ftc-events">
-            <!-- Events will appear here from app.js -->
+      <div class="mt-5">
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="assign-roles-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#assign-roles"
+              type="button"
+              role="tab"
+              aria-controls="assign-roles"
+              aria-selected="true"
+            >
+              Assign Roles
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="home-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#product-overview"
+              type="button"
+              role="tab"
+              aria-controls="product-overview"
+              aria-selected="true"
+            >
+              Product Overview
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="farm-details"
+              data-bs-toggle="tab"
+              data-bs-target="#farm-details-pane"
+              type="button"
+              role="tab"
+              aria-controls="farm-details-pane"
+              aria-selected="false"
+            >
+              Farm Details
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="product-details"
+              data-bs-toggle="tab"
+              data-bs-target="#product-details-pane"
+              type="button"
+              role="tab"
+              aria-controls="product-details-pane"
+              aria-selected="false"
+            >
+              Product Details
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="transaction-history"
+              data-bs-toggle="tab"
+              data-bs-target="#transaction-history-pane"
+              type="button"
+              role="tab"
+              aria-controls="transaction-history-pane"
+              aria-selected="false"
+            >
+              Transaction History
+            </button>
+          </li>
         </ul>
-        <br>
-        <hr>
+        <div class="tab-content mt-5" id="myTabContent">
+          <div
+            class="tab-pane fade show active"
+            id="assign-roles"
+            role="tabpanel"
+            aria-labelledby="assign-roles-tab"
+            tabindex="0"
+          >
+            <div class="card">
+              <h2 class="card-header h5">Assign Roles</h2>
+              <div class="card-body">
+                <form id="assignRoles">
+                  <div class="mb-3">
+                    <label for="userAddress" class="form-label">Address</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="userAddress"
+                      name="userAddress"
+                      value="0xdece2fc0f8a19dd95ebf545499d7f31bdd93cf8b"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <select
+                      class="form-select"
+                      name="userRole"
+                      aria-label="User role"
+                    >
+                      <option selected>Choose role</option>
+                      <option value="farmer">Farmer</option>
+                      <option value="distributor">Distributor</option>
+                      <option value="retailer">Retailer</option>
+                      <option value="consumer">Consumer</option>
+                    </select>
+                  </div>
+                  <div>
+                    <button type="submit" class="btn btn-primary">
+                      Assign Role
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div
+            class="tab-pane fade"
+            id="product-overview"
+            role="tabpanel"
+            aria-labelledby="home-tab"
+            tabindex="0"
+          >
+            <div class="card">
+              <h2 class="card-header h5">Product Overview</h2>
+              <div class="card-body">
+                <form id="productCheck">
+                  <!--                  <div class="mb-3">-->
+                  <!--                    <label for="productSku" class="form-label">SKU</label>-->
+                  <!--                    <input-->
+                  <!--                      type="number"-->
+                  <!--                      class="form-control"-->
+                  <!--                      id="productSku"-->
+                  <!--                      name="productSku"-->
+                  <!--                      value="1"-->
+                  <!--                    />-->
+                  <!--                  </div>-->
+                  <div class="mb-3">
+                    <label for="productUpc" class="form-label">UPC</label>
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="productUpc"
+                      name="productUpc"
+                      value="1"
+                    />
+                  </div>
+                  <!--                  <div class="mb-3">-->
+                  <!--                    <label for="productOwnerAddress" class="form-label"-->
+                  <!--                      >Current owner address</label-->
+                  <!--                    >-->
+                  <!--                    <input-->
+                  <!--                      type="text"-->
+                  <!--                      class="form-control"-->
+                  <!--                      id="productOwnerAddress"-->
+                  <!--                      value="0x963865f57804b38459dd4b2da2f760211a200438"-->
+                  <!--                    />-->
+                  <!--                  </div>-->
+
+                  <div class="mt-4">
+                    <button
+                      type="button"
+                      data-action="fetchData1"
+                      class="btn btn-primary me-2"
+                    >
+                      Fetch Data 1
+                    </button>
+                    <button
+                      type="button"
+                      data-action="fetchData2"
+                      class="btn btn-primary"
+                    >
+                      Fetch Data 2
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div
+            class="tab-pane fade"
+            id="farm-details-pane"
+            role="tabpanel"
+            aria-labelledby="farm-details"
+            tabindex="0"
+          >
+            <div class="card">
+              <h2 class="card-header h5">Farm Details</h2>
+              <div class="card-body">
+                <form id="farmDetails">
+                  <div class="mb-3">
+                    <label for="originFarmerID" class="form-label"
+                      >Farmer Address</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="originFarmerID"
+                      name="originFarmerID"
+                      value="0xdece2fc0f8a19dd95ebf545499d7f31bdd93cf8b"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="originFarmName" class="form-label"
+                      >Farm Name</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="originFarmName"
+                      name="originFarmName"
+                      value="John Doe"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="originFarmInformation" class="form-label"
+                      >Farm Information</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="originFarmInformation"
+                      name="originFarmInformation"
+                      value="Yarra Valley"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="originFarmLatitude" class="form-label"
+                      >Farm Latitude</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="originFarmLatitude"
+                      name="originFarmLatitude"
+                      value="-38.239770"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="originFarmLatitude" class="form-label"
+                      >Farm Latitude</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="originFarmLongitude"
+                      name="originFarmLongitude"
+                      value="144.341490"
+                    />
+                  </div>
+
+                  <div class="mt-4">
+                    <button
+                      type="button"
+                      data-action="harvest"
+                      class="btn btn-primary me-2"
+                    >
+                      Harvest
+                    </button>
+                    <button
+                      type="button"
+                      data-action="process"
+                      class="btn btn-primary me-2"
+                    >
+                      Process
+                    </button>
+                    <button
+                      type="button"
+                      data-action="pack"
+                      class="btn btn-primary me-2"
+                    >
+                      Pack
+                    </button>
+                    <button
+                      type="button"
+                      data-action="forSale"
+                      class="btn btn-primary me-2"
+                    >
+                      Set for sale
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div
+            class="tab-pane fade"
+            id="product-details-pane"
+            role="tabpanel"
+            aria-labelledby="product-details"
+            tabindex="0"
+          >
+            <div class="card">
+              <h2 class="card-header h5">Product Details</h2>
+              <div class="card-body">
+                <form id="productDetails">
+                  <div class="mb-3">
+                    <label for="productNotes" class="form-label"
+                      >Product notes</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="productNotes"
+                      name="productNotes"
+                      value="Best beans for Espresso"
+                      size="60"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="productPrice" class="form-label"
+                      >Product Price</label
+                    >
+                    <div class="input-group mb-3">
+                      <span class="input-group-text" id="productPriceLabel"
+                        >ETH</span
+                      >
+                      <input
+                        type="text"
+                        aria-describedby="productPriceLabel"
+                        class="form-control"
+                        id="productPrice"
+                        name="productPrice"
+                        value="1"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="distributorID" class="form-label"
+                      >Distributor address</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="distributorID"
+                      name="distributorID"
+                      value="0xf1b1bcd24dad92303dd9fe78be639f7bcf9c238d"
+                      size="50"
+                    />
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="retailerID" class="form-label"
+                      >Reailer address</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="retailerID"
+                      name="retailerID"
+                      value="0x0fb2bfefd526966c87efa19f6693d50971763fc2"
+                      size="50"
+                    />
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="consumerID" class="form-label"
+                      >Consumer address</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="consumerID"
+                      name="consumerID"
+                      value="0x5d777e9127b28fb119e81a6304278a0a21bef1c4"
+                      size="50"
+                    />
+                  </div>
+
+                  <div class="mt-4">
+                    <button
+                      type="button"
+                      data-action="buy"
+                      class="btn btn-primary me-2"
+                    >
+                      Buy
+                    </button>
+                    <button
+                      type="button"
+                      data-action="ship"
+                      class="btn btn-primary me-2"
+                    >
+                      Ship
+                    </button>
+                    <button
+                      type="button"
+                      data-action="receive"
+                      class="btn btn-primary me-2"
+                    >
+                      Receive
+                    </button>
+                    <button
+                      type="button"
+                      data-action="purchase"
+                      class="btn btn-primary me-2"
+                    >
+                      Purchase
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div
+            class="tab-pane fade"
+            id="transaction-history-pane"
+            role="tabpanel"
+            aria-labelledby="transaction-history"
+            tabindex="0"
+          >
+            <!-- Events will appear here from app.js -->
+            <h2 class="h5">Transaction history</h2>
+            <ul class="list-group mt-4">
+              <li class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                  <h5 class="mb-1">List group item heading</h5>
+                  <small>3 days ago</small>
+                </div>
+                <p class="mb-1">Some placeholder content in a paragraph.</p>
+                <small>And some small print.</small>
+              </li>
+              <li class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                  <h5 class="mb-1">List group item heading</h5>
+                  <small class="text-body-secondary">3 days ago</small>
+                </div>
+                <p class="mb-1">Some placeholder content in a paragraph.</p>
+                <small class="text-body-secondary"
+                  >And some muted small print.</small
+                >
+              </li>
+              <li class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                  <h5 class="mb-1">List group item heading</h5>
+                  <small class="text-body-secondary">3 days ago</small>
+                </div>
+                <p class="mb-1">Some placeholder content in a paragraph.</p>
+                <small class="text-body-secondary"
+                  >And some muted small print.</small
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-    <!-- <script src="js/web3.min.js"></script> -->
-    <script src="js/truffle-contract.js"></script>
-    <script src="js/app.js"></script>
-</body>
+    <div class="position-fixed top-0 pt-4 w-100">
+      <div
+        id="alertPlaceholder"
+        class="mx-auto"
+        style="
+          max-width: 50em;
+          padding-left: 12px;
+          padding-right: 12px;
+          word-break: break-word;
+        "
+      ></div>
+    </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/3.4.1/jquery-migrate.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.5.2/web3.min.js"></script>
+    <script src="../node_modules/@truffle/contract/browser-dist/truffle-contract.js"></script>
+    <script type="module" src="js/app.js"></script>
+  </body>
 </html>

@@ -1,385 +1,442 @@
-App = {
-  web3Provider: null,
-  contracts: {},
-  emptyAddress: "0x0000000000000000000000000000000000000000",
-  sku: 0,
-  upc: 0,
-  metamaskAccountID: "0x0000000000000000000000000000000000000000",
-  ownerID: "0x0000000000000000000000000000000000000000",
-  originFarmerID: "0x0000000000000000000000000000000000000000",
-  originFarmName: null,
-  originFarmInformation: null,
-  originFarmLatitude: null,
-  originFarmLongitude: null,
-  productNotes: null,
-  productPrice: 0,
-  distributorID: "0x0000000000000000000000000000000000000000",
-  retailerID: "0x0000000000000000000000000000000000000000",
-  consumerID: "0x0000000000000000000000000000000000000000",
+class App {
+  statuses = {
+    Harvested: 0,
+    Processed: 1,
+    Packed: 2,
+    ForSale: 3,
+    Sold: 4,
+    Shipped: 5,
+    Received: 6,
+    Purchased: 7,
+  };
 
-  init: async function () {
-    App.readForm();
-    /// Setup access to blockchain
-    return await App.initWeb3();
-  },
+  provider = null;
 
-  readForm: function () {
-    App.sku = $("#sku").val();
-    App.upc = $("#upc").val();
-    App.ownerID = $("#ownerID").val();
-    App.originFarmerID = $("#originFarmerID").val();
-    App.originFarmName = $("#originFarmName").val();
-    App.originFarmInformation = $("#originFarmInformation").val();
-    App.originFarmLatitude = $("#originFarmLatitude").val();
-    App.originFarmLongitude = $("#originFarmLongitude").val();
-    App.productNotes = $("#productNotes").val();
-    App.productPrice = $("#productPrice").val();
-    App.distributorID = $("#distributorID").val();
-    App.retailerID = $("#retailerID").val();
-    App.consumerID = $("#consumerID").val();
+  instance = null;
 
-    console.log(
-      App.sku,
-      App.upc,
-      App.ownerID,
-      App.originFarmerID,
-      App.originFarmName,
-      App.originFarmInformation,
-      App.originFarmLatitude,
-      App.originFarmLongitude,
-      App.productNotes,
-      App.productPrice,
-      App.distributorID,
-      App.retailerID,
-      App.consumerID
-    );
-  },
+  accounts = [];
 
-  initWeb3: async function () {
-    /// Find or Inject Web3 Provider
-    /// Modern dapp browsers...
-    if (window.ethereum) {
-      App.web3Provider = window.ethereum;
+  sku = 0;
+
+  upc = 0;
+
+  metamaskAccountID = "0x000000";
+
+  ownerID = "0x000000";
+
+  originFarmerID = "0x000000";
+
+  originFarmName = null;
+
+  originFarmInformation = null;
+
+  originFarmLatitude = null;
+
+  originFarmLongitude = null;
+
+  productNotes = null;
+
+  productPrice = 0;
+
+  distributorID = "0x000000";
+
+  retailerID = "0x000000";
+
+  consumerID = "0x000000";
+
+  farmerRole = null;
+
+  distributorRole = null;
+
+  retailerRole = null;
+
+  consumerRole = null;
+
+  farmerAddress = "0x000000";
+
+  distributorAddress = "0x000000";
+
+  retailerAddress = "0x000000";
+
+  consumerAddress = "0x000000";
+
+  guestAddress = "0x000000";
+
+  alertPlaceholder = null;
+
+  constructor(props) {
+    this.init();
+  }
+
+  init = async () => {
+    try {
+      this.initElements();
+
+      await this.initWeb3();
+      await this.initContract();
+      await this.initRoles();
+      await this.initAddresses();
+
+      this.bindEvents();
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  initWeb3 = async () => {
+    if (undefined !== window.ethereum) {
+      this.provider = window.ethereum;
+
       try {
-        // Request account access
-        await window.ethereum.enable();
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts",
+        });
+
+        this.metamaskAccountID = accounts[0];
+        this.accounts = accounts.reverse();
       } catch (error) {
-        // User denied account access...
-        console.error("User denied account access");
+        this.addMessage(error.message ?? "Unknown error", "danger");
+        console.error(error);
       }
+    } else if (window.web3) {
+      this.provider = window.web3.currentProvider;
+    } else {
+      this.provider = new Web3("http://127.0.0.1:9545");
     }
-    // Legacy dapp browsers...
-    else if (window.web3) {
-      App.web3Provider = window.web3.currentProvider;
-    }
-    // If no injected web3 instance is detected, fall back to Ganache
-    else {
-      App.web3Provider = new Web3.providers.HttpProvider(
-        "http://localhost:7545"
-      );
-    }
+  };
 
-    App.getMetamaskAccountID();
+  initContract = async () => {
+    const data = await $.getJSON("../../build/contracts/SupplyChain.json");
+    const SupplyChain = TruffleContract(data);
 
-    return App.initSupplyChain();
-  },
+    SupplyChain.setProvider(this.provider);
 
-  getMetamaskAccountID: function () {
-    web3 = new Web3(App.web3Provider);
+    this.instance = await SupplyChain.deployed();
+  };
 
-    // Retrieving accounts
-    web3.eth.getAccounts(function (err, res) {
-      if (err) {
-        console.log("Error:", err);
-        return;
-      }
-      console.log("getMetaskID:", res);
-      App.metamaskAccountID = res[0];
-    });
-  },
+  initRoles = async () => {
+    this.farmerRole = await this.instance.FARMER_ROLE();
+    this.distributorRole = await this.instance.DISTRIBUTOR_ROLE();
+    this.retailerRole = await this.instance.RETAILER_ROLE();
+    this.consumerRole = await this.instance.CONSUMER_ROLE();
+  };
 
-  initSupplyChain: function () {
-    /// Source the truffle compiled smart contracts
-    var jsonSupplyChain = "../../build/contracts/SupplyChain.json";
+  initAddresses = async () => {
+    this.farmerAddress = this.accounts[1];
+    this.distributorAddress = this.accounts[2];
+    this.retailerAddress = this.accounts[3];
+    this.consumerAddress = this.accounts[4];
+    this.guestAddress = this.accounts[5];
+  };
 
-    /// JSONfy the smart contracts
-    $.getJSON(jsonSupplyChain, function (data) {
-      console.log("data", data);
-      var SupplyChainArtifact = data;
-      App.contracts.SupplyChain = TruffleContract(SupplyChainArtifact);
-      App.contracts.SupplyChain.setProvider(App.web3Provider);
-
-      App.fetchItemBufferOne();
-      App.fetchItemBufferTwo();
-      App.fetchEvents();
+  grantRoles = async () => {
+    await this.instance.grantRole(this.farmerRole, this.farmerAddress, {
+      from: this.metamaskAccountID,
     });
 
-    return App.bindEvents();
-  },
+    await this.instance.grantRole(
+      this.distributorRole,
+      this.distributorAddress,
+      { from: this.metamaskAccountID }
+    );
 
-  bindEvents: function () {
-    $(document).on("click", App.handleButtonClick);
-  },
+    await this.instance.grantRole(this.retailerRole, this.retailerAddress, {
+      from: this.metamaskAccountID,
+    });
 
-  handleButtonClick: async function (event) {
+    await this.instance.grantRole(this.consumerRole, this.consumerAddress, {
+      from: this.metamaskAccountID,
+    });
+  };
+
+  initElements = () => {
+    this.alertPlaceholder = $("#alertPlaceholder");
+  };
+
+  addMessage = (message, type) => {
+    const alert = `<div class="alert alert-${type} alert-dismissible fade show shadow" role="alert">
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>`;
+
+    this.alertPlaceholder.append(alert);
+  };
+
+  clearMessages = () => {
+    this.alertPlaceholder.html("");
+  };
+
+  bindEvents = () => {
+    $("[data-action]").on("click", this.handleButtonClick.bind(this));
+    $("#assignRoles").on("submit", this.handleAssignRole.bind(this));
+  };
+
+  handleAssignRole = async (event) => {
     event.preventDefault();
 
-    App.getMetamaskAccountID();
+    this.clearMessages();
 
-    var processId = parseInt($(event.target).data("id"));
-    console.log("processId", processId);
+    const role = $(event.target).find('[name="userRole"]').val();
+    const address = $(event.target).find('[name="userAddress"]').val();
 
-    switch (processId) {
-      case 1:
-        return await App.harvestItem(event);
-        break;
-      case 2:
-        return await App.processItem(event);
-        break;
-      case 3:
-        return await App.packItem(event);
-        break;
-      case 4:
-        return await App.sellItem(event);
-        break;
-      case 5:
-        return await App.buyItem(event);
-        break;
-      case 6:
-        return await App.shipItem(event);
-        break;
-      case 7:
-        return await App.receiveItem(event);
-        break;
-      case 8:
-        return await App.purchaseItem(event);
-        break;
-      case 9:
-        return await App.fetchItemBufferOne(event);
-        break;
-      case 10:
-        return await App.fetchItemBufferTwo(event);
-        break;
-    }
-  },
-
-  harvestItem: function (event) {
-    event.preventDefault();
-    var processId = parseInt($(event.target).data("id"));
-
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        return instance.harvestItem(
-          App.upc,
-          App.metamaskAccountID,
-          App.originFarmName,
-          App.originFarmInformation,
-          App.originFarmLatitude,
-          App.originFarmLongitude,
-          App.productNotes
-        );
-      })
-      .then(function (result) {
-        $("#ftc-item").text(result);
-        console.log("harvestItem", result);
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-
-  processItem: function (event) {
-    event.preventDefault();
-    var processId = parseInt($(event.target).data("id"));
-
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        return instance.processItem(App.upc, { from: App.metamaskAccountID });
-      })
-      .then(function (result) {
-        $("#ftc-item").text(result);
-        console.log("processItem", result);
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-
-  packItem: function (event) {
-    event.preventDefault();
-    var processId = parseInt($(event.target).data("id"));
-
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        return instance.packItem(App.upc, { from: App.metamaskAccountID });
-      })
-      .then(function (result) {
-        $("#ftc-item").text(result);
-        console.log("packItem", result);
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-
-  sellItem: function (event) {
-    event.preventDefault();
-    var processId = parseInt($(event.target).data("id"));
-
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        const productPrice = web3.toWei(1000000, "gwei");
-        console.log("productPrice", productPrice);
-        return instance.sellItem(App.upc, App.productPrice, {
-          from: App.metamaskAccountID,
-        });
-      })
-      .then(function (result) {
-        $("#ftc-item").text(result);
-        console.log("sellItem", result);
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-
-  buyItem: function (event) {
-    event.preventDefault();
-    var processId = parseInt($(event.target).data("id"));
-
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        const walletValue = web3.toWei(2000000, "gwei");
-        return instance.buyItem(App.upc, {
-          from: App.metamaskAccountID,
-          value: walletValue,
-        });
-      })
-      .then(function (result) {
-        $("#ftc-item").text(result);
-        console.log("buyItem", result);
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-
-  shipItem: function (event) {
-    event.preventDefault();
-    var processId = parseInt($(event.target).data("id"));
-
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        return instance.shipItem(App.upc, { from: App.metamaskAccountID });
-      })
-      .then(function (result) {
-        $("#ftc-item").text(result);
-        console.log("shipItem", result);
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-
-  receiveItem: function (event) {
-    event.preventDefault();
-    var processId = parseInt($(event.target).data("id"));
-
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        return instance.receiveItem(App.upc, { from: App.metamaskAccountID });
-      })
-      .then(function (result) {
-        $("#ftc-item").text(result);
-        console.log("receiveItem", result);
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-
-  purchaseItem: function (event) {
-    event.preventDefault();
-    var processId = parseInt($(event.target).data("id"));
-
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        return instance.purchaseItem(App.upc, { from: App.metamaskAccountID });
-      })
-      .then(function (result) {
-        $("#ftc-item").text(result);
-        console.log("purchaseItem", result);
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-
-  fetchItemBufferOne: function () {
-    ///   event.preventDefault();
-    ///    var processId = parseInt($(event.target).data('id'));
-    App.upc = $("#upc").val();
-    console.log("upc", App.upc);
-
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        return instance.fetchItemBufferOne(App.upc);
-      })
-      .then(function (result) {
-        $("#ftc-item").text(result);
-        console.log("fetchItemBufferOne", result);
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-
-  fetchItemBufferTwo: function () {
-    ///    event.preventDefault();
-    ///    var processId = parseInt($(event.target).data('id'));
-
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        return instance.fetchItemBufferTwo.call(App.upc);
-      })
-      .then(function (result) {
-        $("#ftc-item").text(result);
-        console.log("fetchItemBufferTwo", result);
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-
-  fetchEvents: function () {
-    if (
-      typeof App.contracts.SupplyChain.currentProvider.sendAsync !== "function"
-    ) {
-      App.contracts.SupplyChain.currentProvider.sendAsync = function () {
-        return App.contracts.SupplyChain.currentProvider.send.apply(
-          App.contracts.SupplyChain.currentProvider,
-          arguments
-        );
-      };
+    if (!role || !address) {
+      this.addMessage("Role and address are required", "danger");
+      return;
     }
 
-    App.contracts.SupplyChain.deployed()
-      .then(function (instance) {
-        var events = instance.allEvents(function (err, log) {
-          if (!err)
-            $("#ftc-events").append(
-              "<li>" + log.event + " - " + log.transactionHash + "</li>"
-            );
-        });
-      })
-      .catch(function (err) {
-        console.log(err.message);
-      });
-  },
-};
+    let roleCode = null;
 
-$(function () {
-  $(window).load(function () {
-    App.init();
-  });
+    try {
+      switch (role) {
+        case "farmer":
+          roleCode = this.farmerRole;
+          break;
+        case "distributor":
+          roleCode = this.distributorRole;
+          break;
+        case "retailer":
+          roleCode = this.retailerRole;
+          break;
+        case "consumer":
+          roleCode = this.consumerRole;
+          break;
+        default:
+          throw new Error("Invalid role");
+      }
+
+      await this.instance.grantRole(roleCode, address, {
+        from: this.metamaskAccountID,
+      });
+
+      this.addMessage(`Role ${role} assigned to ${address}`, "success");
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  handleButtonClick = async (event) => {
+    event.preventDefault();
+
+    const action = $(event.target).data("action");
+
+    if (!action) {
+      return;
+    }
+
+    try {
+      switch (action) {
+        case "harvest":
+          await this.harvestItem(event);
+          break;
+        case "process":
+          await this.processItem(event);
+          break;
+        case "pack":
+          await this.packItem(event);
+          break;
+        case "sell":
+          await this.sellItem(event);
+          break;
+        case "buy":
+          await this.buyItem(event);
+          break;
+        case "ship":
+          await this.shipItem(event);
+          break;
+        case "receive":
+          await this.receiveItem(event);
+          break;
+        case "purchase":
+          await this.purchaseItem(event);
+          break;
+        case "fetchData1":
+          await this.fetchItemBufferOne(event);
+          break;
+        case "fetchData2":
+          await this.fetchItemBufferTwo(event);
+          break;
+        default:
+          console.warn(`No handler for action: ${action}`);
+          break;
+      }
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  harvestItem = async (event) => {
+    event.preventDefault();
+
+    const form = document.getElementById("farmDetails");
+
+    const formData = new FormData(form);
+
+    // const upc = $("#upc").val();
+    const originFarmName = $("#originFarmName").val();
+    const originFarmInformation = $("#originFarmInformation").val();
+    const originFarmLatitude = $("#originFarmLatitude").val();
+    const originFarmLongitude = $("#originFarmLongitude").val();
+    const productNotes = $("#productNotes").val();
+
+    // this.upc = upc;
+    this.originFarmName = originFarmName;
+    this.originFarmInformation = originFarmInformation;
+    this.originFarmLatitude = originFarmLatitude;
+    this.originFarmLongitude = originFarmLongitude;
+    this.productNotes = productNotes;
+
+    const tx = await this.instance.harvestItem(
+      this.upc,
+      this.farmerAddress,
+      originFarmName,
+      originFarmInformation,
+      originFarmLatitude,
+      originFarmLongitude,
+      productNotes,
+      { from: this.metamaskAccountID }
+    );
+
+    console.log(tx);
+
+    this.addMessage(`Transaction hash: ${tx.tx}`, "success");
+  };
+
+  processItem = async (event) => {
+    event.preventDefault();
+
+    const upc = $("#upc").val();
+
+    await this.instance.processItem(upc, { from: this.farmerAddress });
+
+    $("#ftc-item").text(`UPC: ${upc}`);
+  };
+
+  packItem = async (event) => {
+    event.preventDefault();
+
+    const upc = $("#upc").val();
+
+    await this.instance.packItem(upc, { from: this.farmerAddress });
+
+    $("#ftc-item").text(`UPC: ${upc}`);
+  };
+
+  sellItem = async (event) => {
+    event.preventDefault();
+
+    const upc = $("#upc").val();
+    const productPrice = Web3.utils.toWei($("#productPrice").val(), "ether");
+
+    await this.instance.sellItem(upc, productPrice, {
+      from: this.farmerAddress,
+    });
+
+    $("#ftc-item").text(`UPC: ${upc}`);
+  };
+
+  buyItem = async (event) => {
+    event.preventDefault();
+
+    const upc = $("#upc").val();
+    const productPrice = Web3.utils.toWei($("#productPrice").val(), "ether");
+
+    const tx = await this.instance.buyItem(upc, {
+      from: this.distributorAddress,
+      value: productPrice,
+    });
+
+    console.log(tx);
+
+    // addItemToHistory(upc, tx.hash);
+
+    $("#ftc-item").text(`UPC: ${upc}`);
+  };
+
+  shipItem = async (event) => {
+    event.preventDefault();
+
+    const upc = $("#upc").val();
+
+    await this.instance.shipItem(upc, { from: this.distributorAddress });
+
+    $("#ftc-item").text(`UPC: ${upc}`);
+  };
+
+  receiveItem = async (event) => {
+    event.preventDefault();
+
+    const upc = $("#upc").val();
+
+    await this.instance.receiveItem(upc, { from: this.retailerAddress });
+
+    $("#ftc-item").text(`UPC: ${upc}`);
+  };
+
+  purchaseItem = async (event) => {
+    event.preventDefault();
+
+    const upc = $("#upc").val();
+
+    await this.instance.purchaseItem(upc, { from: this.consumerAddress });
+
+    $("#ftc-item").text(`UPC: ${upc}`);
+  };
+
+  fetchItemBufferOne = async (event) => {
+    event.preventDefault();
+
+    const form = document.getElementById("productCheck");
+
+    const formData = new FormData(form);
+
+    const upc = formData.get("productUpc");
+
+    const result = await this.instance.fetchItemBufferOne(upc);
+
+    console.log(result);
+
+    // const $el = $("#ftc-item");
+    //
+    // $el.text(`UPC: ${upc}`);
+    // $el.append(`<li>SKU: ${result[0]}</li>`);
+    // $el.append(`<li>UPC: ${result[1]}</li>`);
+    // $el.append(`<li>Owner ID: ${result[2]}</li>`);
+    // $el.append(`<li>Origin Farmer ID: ${result[3]}</li>`);
+    // $el.append(`<li>Origin Farm Name: ${result[4]}</li>`);
+    // $el.append(`<li>Origin Farm Information: ${result[5]}</li>`);
+    // $el.append(`<li>Origin Farm Latitude: ${result[6]}</li>`);
+    // $el.append(`<li>Origin Farm Longitude: ${result[7]}</li>`);
+  };
+
+  fetchItemBufferTwo = async (event) => {
+    event.preventDefault();
+
+    const form = document.getElementById("productCheck");
+
+    const formData = new FormData(form);
+
+    const upc = formData.get("productUpc");
+
+    const result = await this.instance.fetchItemBufferTwo(upc);
+
+    console.log(result);
+
+    // $el.text(`UPC: ${upc}`);
+    // $el.append(`<li>SKU: ${result[0]}</li>`);
+    // $el.append(`<li>UPC: ${result[1]}</li>`);
+    // $el.append(`<li>Product ID: ${result[2]}</li>`);
+    // $el.append(`<li>Product Notes: ${result[3]}</li>`);
+    // $el.append(`<li>Product Price: ${result[4]}</li>`);
+    // $el.append(`<li>Item State: ${result[5]}</li>`);
+    // $el.append(`<li>Distributor ID: ${result[6]}</li>`);
+    // $el.append(`<li>Retailer ID: ${result[7]}</li>`);
+    // $el.append(`<li>Consumer ID: ${result[8]}</li>`);
+  };
+}
+
+$(window).on("load", function () {
+  new App();
 });
