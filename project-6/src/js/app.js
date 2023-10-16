@@ -130,26 +130,6 @@ class App {
     this.guestAddress = this.accounts[5];
   };
 
-  grantRoles = async () => {
-    await this.instance.grantRole(this.farmerRole, this.farmerAddress, {
-      from: this.metamaskAccountID,
-    });
-
-    await this.instance.grantRole(
-      this.distributorRole,
-      this.distributorAddress,
-      { from: this.metamaskAccountID }
-    );
-
-    await this.instance.grantRole(this.retailerRole, this.retailerAddress, {
-      from: this.metamaskAccountID,
-    });
-
-    await this.instance.grantRole(this.consumerRole, this.consumerAddress, {
-      from: this.metamaskAccountID,
-    });
-  };
-
   initElements = () => {
     this.alertPlaceholder = $("#alertPlaceholder");
   };
@@ -177,8 +157,8 @@ class App {
 
     this.clearMessages();
 
-    const role = $(event.target).find('[name="userRole"]').val();
     const address = $(event.target).find('[name="userAddress"]').val();
+    const role = $(event.target).find('[name="userRole"]').val();
 
     if (!role || !address) {
       this.addMessage("Role and address are required", "danger");
@@ -275,11 +255,11 @@ class App {
     const formData = new FormData(form);
 
     // const upc = $("#upc").val();
-    const originFarmName = $("#originFarmName").val();
-    const originFarmInformation = $("#originFarmInformation").val();
-    const originFarmLatitude = $("#originFarmLatitude").val();
-    const originFarmLongitude = $("#originFarmLongitude").val();
-    const productNotes = $("#productNotes").val();
+    const originFarmName = formData.get("originFarmName");
+    const originFarmInformation = formData.get("originFarmInformation");
+    const originFarmLatitude = formData.get("originFarmLatitude");
+    const originFarmLongitude = formData.get("originFarmLongitude");
+    const productNotes = formData.get("productNotes");
 
     // this.upc = upc;
     this.originFarmName = originFarmName;
@@ -295,8 +275,7 @@ class App {
       originFarmInformation,
       originFarmLatitude,
       originFarmLongitude,
-      productNotes,
-      { from: this.metamaskAccountID }
+      productNotes
     );
 
     console.log(tx);
@@ -309,7 +288,7 @@ class App {
 
     const upc = $("#upc").val();
 
-    await this.instance.processItem(upc, { from: this.farmerAddress });
+    await this.instance.processItem(upc);
 
     $("#ftc-item").text(`UPC: ${upc}`);
   };
@@ -319,7 +298,7 @@ class App {
 
     const upc = $("#upc").val();
 
-    await this.instance.packItem(upc, { from: this.farmerAddress });
+    await this.instance.packItem(upc);
 
     $("#ftc-item").text(`UPC: ${upc}`);
   };
@@ -330,9 +309,7 @@ class App {
     const upc = $("#upc").val();
     const productPrice = Web3.utils.toWei($("#productPrice").val(), "ether");
 
-    await this.instance.sellItem(upc, productPrice, {
-      from: this.farmerAddress,
-    });
+    await this.instance.sellItem(upc, productPrice);
 
     $("#ftc-item").text(`UPC: ${upc}`);
   };
@@ -344,7 +321,6 @@ class App {
     const productPrice = Web3.utils.toWei($("#productPrice").val(), "ether");
 
     const tx = await this.instance.buyItem(upc, {
-      from: this.distributorAddress,
       value: productPrice,
     });
 
@@ -360,7 +336,7 @@ class App {
 
     const upc = $("#upc").val();
 
-    await this.instance.shipItem(upc, { from: this.distributorAddress });
+    await this.instance.shipItem(upc);
 
     $("#ftc-item").text(`UPC: ${upc}`);
   };
@@ -370,7 +346,7 @@ class App {
 
     const upc = $("#upc").val();
 
-    await this.instance.receiveItem(upc, { from: this.retailerAddress });
+    await this.instance.receiveItem(upc);
 
     $("#ftc-item").text(`UPC: ${upc}`);
   };
@@ -380,7 +356,7 @@ class App {
 
     const upc = $("#upc").val();
 
-    await this.instance.purchaseItem(upc, { from: this.consumerAddress });
+    await this.instance.purchaseItem(upc);
 
     $("#ftc-item").text(`UPC: ${upc}`);
   };
