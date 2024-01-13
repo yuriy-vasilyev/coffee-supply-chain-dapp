@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 // Define a contract 'SupplyChain'
-contract SupplyChain is Ownable(msg.sender), AccessControl {
+contract SupplyChain is Ownable, AccessControl {
   // Define actor roles
   bytes32 public constant FARMER_ROLE = keccak256("FARMER_ROLE");
   bytes32 public constant DISTRIBUTOR_ROLE = keccak256("DISTRIBUTOR_ROLE");
@@ -75,13 +75,13 @@ contract SupplyChain is Ownable(msg.sender), AccessControl {
 
   // Define a modifier that verifies the Caller
   modifier verifyCaller(address _address) {
-    require(msg.sender == _address, "Caller is not the owner");
+    require(msg.sender == _address);
     _;
   }
 
   // Define a modifier that checks if the paid amount is sufficient to cover the price
   modifier paidEnough(uint _price) {
-    require(msg.value >= _price, "Not enough money");
+    require(msg.value >= _price);
     _;
   }
 
@@ -94,19 +94,7 @@ contract SupplyChain is Ownable(msg.sender), AccessControl {
   }
 
   modifier onlyStatus(uint _upc, Status _status) {
-    require(items[_upc].itemStatus == _status, "Invalid status");
-    _;
-  }
-
-  // Custom modifier that checks if the sender has one of the specified roles
-  modifier onlyActors() {
-    require(
-      hasRole(FARMER_ROLE, msg.sender) ||
-        hasRole(DISTRIBUTOR_ROLE, msg.sender) ||
-        hasRole(RETAILER_ROLE, msg.sender) ||
-        hasRole(CONSUMER_ROLE, msg.sender),
-      "Sender does not have required role"
-    );
+    require(items[_upc].itemStatus == _status);
     _;
   }
 
@@ -115,13 +103,13 @@ contract SupplyChain is Ownable(msg.sender), AccessControl {
     sku = 1;
     upc = 1;
 
-    // Set the owner as the default admin role
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
   }
 
   // Define a function 'harvestItem' that allows a farmer to mark an item 'Harvested'
   function harvestItem(
     uint _upc,
+    address _originFarmerID,
     string memory _originFarmName,
     string memory _originFarmInformation,
     string memory _originFarmLatitude,
@@ -132,8 +120,8 @@ contract SupplyChain is Ownable(msg.sender), AccessControl {
     items[_upc] = Item({
       sku: sku,
       upc: _upc,
-      ownerID: msg.sender,
-      originFarmerID: payable(msg.sender),
+      ownerID: _originFarmerID,
+      originFarmerID: payable(_originFarmerID),
       originFarmName: _originFarmName,
       originFarmInformation: _originFarmInformation,
       originFarmLatitude: _originFarmLatitude,
@@ -174,8 +162,8 @@ contract SupplyChain is Ownable(msg.sender), AccessControl {
     emit Packed(_upc);
   }
 
-  // Define a function 'setForSaleItem' that allows a farmer to mark an item 'ForSale'
-  function setForSaleItem(
+  // Define a function 'sellItem' that allows a farmer to mark an item 'ForSale'
+  function sellItem(
     uint _upc,
     uint _price
   ) public onlyStatus(_upc, Status.Packed) onlyRole(FARMER_ROLE) {
@@ -193,6 +181,7 @@ contract SupplyChain is Ownable(msg.sender), AccessControl {
     public
     payable
     onlyStatus(_upc, Status.ForSale)
+    onlyOwner
     onlyRole(DISTRIBUTOR_ROLE)
     paidEnough(items[_upc].productPrice)
     maybeRefundDifference(_upc)
@@ -338,23 +327,23 @@ contract SupplyChain is Ownable(msg.sender), AccessControl {
     );
   }
 
-  function addItemToHistory(uint _upc, string memory _hash) public onlyActors {
+  function addItemToHistory(
+    uint _upc,
+    string memory _hash
+  )
+    public
+    onlyOwner
+    onlyRole(FARMER_ROLE)
+    onlyRole(DISTRIBUTOR_ROLE)
+    onlyRole(RETAILER_ROLE)
+    onlyRole(CONSUMER_ROLE)
+  {
     itemsHistory[_upc].push(
       ItemHistory({txHash: _hash, timestamp: block.timestamp})
     );
   }
 
-  function getItemHistory(
-    uint _upc
-  ) public view returns (ItemHistory[] memory) {
-    return itemsHistory[_upc];
-  }
-
-  receive() external payable {
-    revert("receive: not allowed");
-  }
-
   fallback() external payable {
-    revert("fallback: not allowed");
+    revert();
   }
 }

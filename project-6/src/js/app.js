@@ -1,3 +1,5 @@
+import Web3 from "https://cdn.jsdelivr.net/npm/web3@4.3.0/+esm";
+
 class App {
   statuses = {
     Harvested: 0,
@@ -11,104 +13,67 @@ class App {
   };
 
   provider = null;
-
   instance = null;
-
   accounts = [];
-
-  sku = 0;
-
-  upc = 0;
-
   metamaskAccountID = "0x000000";
-
-  ownerID = "0x000000";
-
-  originFarmerID = "0x000000";
-
-  originFarmName = null;
-
-  originFarmInformation = null;
-
-  originFarmLatitude = null;
-
-  originFarmLongitude = null;
-
-  productNotes = null;
-
-  productPrice = 0;
-
-  distributorID = "0x000000";
-
-  retailerID = "0x000000";
-
-  consumerID = "0x000000";
-
   farmerRole = null;
-
   distributorRole = null;
-
   retailerRole = null;
-
   consumerRole = null;
+  $alertPlaceholder = null;
 
-  farmerAddress = "0x000000";
-
-  distributorAddress = "0x000000";
-
-  retailerAddress = "0x000000";
-
-  consumerAddress = "0x000000";
-
-  guestAddress = "0x000000";
-
-  alertPlaceholder = null;
-
-  constructor(props) {
-    this.init();
+  constructor() {
+    this.init().catch(console.error);
   }
 
   init = async () => {
     try {
       this.initElements();
 
-      await this.initWeb3();
+      await this.initNetwork();
       await this.initContract();
       await this.initRoles();
-      await this.initAddresses();
+      await this.renderTransactionHistory();
 
       this.bindEvents();
+
+      if (this.isDebug()) {
+        await this.outputRoles();
+      }
     } catch (error) {
       this.addMessage(error.message ?? "Unknown error", "danger");
       console.error(error);
     }
   };
 
-  initWeb3 = async () => {
-    if (undefined !== window.ethereum) {
+  initNetwork = async () => {
+    if (undefined === window.ethereum) {
+      this.addMessage("No Metamask installed", "danger");
+      console.error("No Metamask installed");
+
+      return;
+    }
+
+    try {
       this.provider = window.ethereum;
 
-      try {
-        const accounts = await window.ethereum.request({
-          method: "eth_requestAccounts",
-        });
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
 
-        this.metamaskAccountID = accounts[0];
-        this.accounts = accounts.reverse();
-      } catch (error) {
-        this.addMessage(error.message ?? "Unknown error", "danger");
-        console.error(error);
-      }
-    } else if (window.web3) {
-      this.provider = window.web3.currentProvider;
-    } else {
-      this.provider = new Web3("http://127.0.0.1:9545");
+      this.metamaskAccountID = accounts[0];
+      this.accounts = accounts.reverse();
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
     }
   };
 
   initContract = async () => {
-    const data = await $.getJSON("../../build/contracts/SupplyChain.json");
-    const SupplyChain = TruffleContract(data);
+    const contractArtifact = await $.getJSON(
+      "../../build/contracts/SupplyChain.json"
+    );
+    const SupplyChain = TruffleContract(contractArtifact);
 
     SupplyChain.setProvider(this.provider);
 
@@ -122,16 +87,58 @@ class App {
     this.consumerRole = await this.instance.CONSUMER_ROLE();
   };
 
-  initAddresses = async () => {
-    this.farmerAddress = this.accounts[1];
-    this.distributorAddress = this.accounts[2];
-    this.retailerAddress = this.accounts[3];
-    this.consumerAddress = this.accounts[4];
-    this.guestAddress = this.accounts[5];
+  renderTransactionHistory = async () => {
+    const events = await this.getTransactionHistory();
+
+    let output = '<div class="mt-4">';
+
+    events.forEach((event) => {
+      output += '<div class="card mb-3">';
+      output += '<div class="card-header">';
+      output += `<h5 class="card-title">${event.name}</h5>`;
+      output += "</div>";
+      output += '<ul class="list-group list-group-flush">';
+      output += `<li class="list-group-item">Transaction hash: <code>${event.transactionHash}</code></li>`;
+      output += `<li class="list-group-item">Block number: <code>${event.blockNumber}</code></li>`;
+      output += `<li class="list-group-item">Return values: <code>${JSON.stringify(
+        event.returnValues
+      )}</code></li>`;
+      output += "</li>";
+      output += "</div>";
+    });
+
+    output += "</div>";
+
+    this.$transactionHistoryContainer.html(output);
   };
 
   initElements = () => {
-    this.alertPlaceholder = $("#alertPlaceholder");
+    this.$alertPlaceholder = $("#alertPlaceholder");
+    this.$transactionHistoryContainer = $("#transactionHistory");
+  };
+
+  isDebug = () => {
+    return window.location.search.includes("debug");
+  };
+
+  outputRoles = async () => {
+    console.log("metamaskAccountID: ", this.metamaskAccountID);
+    console.log(
+      "is farmer: ",
+      await this.instance.hasRole(this.farmerRole, this.metamaskAccountID)
+    );
+    console.log(
+      "is distributor: ",
+      await this.instance.hasRole(this.distributorRole, this.metamaskAccountID)
+    );
+    console.log(
+      "is retailer: ",
+      await this.instance.hasRole(this.retailerRole, this.metamaskAccountID)
+    );
+    console.log(
+      "is consumer: ",
+      await this.instance.hasRole(this.consumerRole, this.metamaskAccountID)
+    );
   };
 
   addMessage = (message, type) => {
@@ -140,16 +147,414 @@ class App {
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>`;
 
-    this.alertPlaceholder.append(alert);
+    this.$alertPlaceholder.append(alert);
   };
 
   clearMessages = () => {
-    this.alertPlaceholder.html("");
+    this.$alertPlaceholder.html("");
   };
 
   bindEvents = () => {
-    $("[data-action]").on("click", this.handleButtonClick.bind(this));
+    $("#fetchData1Form").on("submit", this.handleFetchItemBufferOne.bind(this));
+    $("#fetchData2Form").on("submit", this.handleFetchItemBufferTwo.bind(this));
+
+    $("#harvestForm").on("submit", this.handleHarvest.bind(this));
+    $("#processForm").on("submit", this.handleProcess.bind(this));
+    $("#packForm").on("submit", this.handlePack.bind(this));
+    $("#sellForm").on("submit", this.handleSetForSale.bind(this));
+    $("#buyForm").on("submit", this.handleBuy.bind(this));
+    $("#shipForm").on("submit", this.handleShip.bind(this));
+    $("#receiveForm").on("submit", this.handleReceive.bind(this));
+    $("#purchaseForm").on("submit", this.handlePurchase.bind(this));
+
     $("#assignRoles").on("submit", this.handleAssignRole.bind(this));
+  };
+
+  handleFetchItemBufferOne = async (event) => {
+    event.preventDefault();
+
+    try {
+      this.clearMessages();
+
+      const $resultEl = $("#fetchData1Result");
+
+      $resultEl.html('<div class="spinner-border"></div>');
+
+      const formData = new FormData(event.target);
+
+      const upc = formData.get("upc");
+
+      if (!upc) {
+        this.addMessage("UPC is required", "danger");
+        return;
+      }
+
+      const result = await this.instance.fetchItemBufferOne(upc);
+
+      if (this.isDebug()) {
+        console.log(result);
+      }
+
+      let output = '<div class="mt-4">';
+      output += '<ul class="list-group">';
+      output += `<li class="list-group-item">SKU: <b>${result[0]}</b></li>`;
+      output += `<li class="list-group-item">UPC: <b>${result[1]}</b></li>`;
+      output += `<li class="list-group-item">Owner address: <b>${result[2]}</b></li>`;
+      output += `<li class="list-group-item">Farmer address: <b>${result[3]}</b></li>`;
+      output += `<li class="list-group-item">Farm name: <b>${result[4]}</b></li>`;
+      output += `<li class="list-group-item">Farm information: <b>${result[5]}</b></li>`;
+      output += `<li class="list-group-item">Farm latitude: <b>${result[6]}</b></li>`;
+      output += `<li class="list-group-item">Farm longitude: <b>${result[7]}</b></li>`;
+      output += "</ul>";
+
+      $resultEl.html(output);
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  handleFetchItemBufferTwo = async (event) => {
+    event.preventDefault();
+
+    try {
+      this.clearMessages();
+
+      const $resultEl = $("#fetchData2Result");
+
+      $resultEl.html('<div class="spinner-border"></div>');
+
+      const formData = new FormData(event.target);
+
+      const upc = formData.get("upc");
+
+      if (!upc) {
+        this.addMessage("UPC is required", "danger");
+        return;
+      }
+
+      const result = await this.instance.fetchItemBufferTwo(upc);
+
+      if (this.isDebug()) {
+        console.log(result);
+      }
+
+      let output = '<div class="mt-4">';
+      output += '<ul class="list-group">';
+      output += `<li class="list-group-item">SKU: <b>${result[0]}</b></li>`;
+      output += `<li class="list-group-item">UPC: <b>${result[1]}</b></li>`;
+      output += `<li class="list-group-item">Product ID: <b>${result[2]}</b></li>`;
+      output += `<li class="list-group-item">Product notes: <b>${result[3]}</b></li>`;
+      output += `<li class="list-group-item">Product price: <b>${result[4]}</b></li>`;
+      output += `<li class="list-group-item">Status: <b>${this.figureStatusLabel(
+        result[5].toNumber()
+      )}</b></li>`;
+      output += `<li class="list-group-item">Distributor address: <b>${result[6]}</b></li>`;
+      output += `<li class="list-group-item">Retailer address: <b>${result[7]}</b></li>`;
+      output += `<li class="list-group-item">Consumer address: <b>${result[8]}</b></li>`;
+      output += "</ul>";
+
+      $resultEl.html(output);
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  handleHarvest = async (event) => {
+    event.preventDefault();
+
+    this.clearMessages();
+
+    const formData = new FormData(event.target);
+
+    const ups = formData.get("upc");
+    const farmName = formData.get("farmName");
+    const farmInformation = formData.get("farmInformation");
+    const latitude = formData.get("latitude");
+    const longitude = formData.get("longitude");
+    const productNotes = formData.get("productNotes");
+
+    if (!farmName || !farmInformation || !latitude || !longitude) {
+      this.addMessage("All fields are required", "danger");
+      return;
+    }
+
+    try {
+      const tx = await this.instance.harvestItem(
+        ups,
+        farmName,
+        farmInformation,
+        latitude,
+        longitude,
+        productNotes,
+        {
+          from: this.metamaskAccountID,
+        }
+      );
+
+      if (this.isDebug()) {
+        console.log(tx);
+      }
+
+      this.addMessage(`Transaction hash: ${tx.tx}`, "success");
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  handleProcess = async (event) => {
+    event.preventDefault();
+
+    this.clearMessages();
+
+    const formData = new FormData(event.target);
+
+    const upc = formData.get("upc");
+
+    if (!upc) {
+      this.addMessage("UPC is required", "danger");
+      return;
+    }
+
+    try {
+      const tx = await this.instance.processItem(upc, {
+        from: this.metamaskAccountID,
+      });
+
+      if (this.isDebug()) {
+        console.log(tx);
+      }
+
+      this.addMessage(`Transaction hash: ${tx.tx}`, "success");
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  handlePack = async (event) => {
+    event.preventDefault();
+
+    this.clearMessages();
+
+    const formData = new FormData(event.target);
+
+    const upc = formData.get("upc");
+
+    if (!upc) {
+      this.addMessage("UPC is required", "danger");
+      return;
+    }
+
+    try {
+      const tx = await this.instance.packItem(upc, {
+        from: this.metamaskAccountID,
+      });
+
+      if (this.isDebug()) {
+        console.log(tx);
+      }
+
+      this.addMessage(`Transaction hash: ${tx.tx}`, "success");
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  handleSetForSale = async (event) => {
+    event.preventDefault();
+
+    this.clearMessages();
+
+    const formData = new FormData(event.target);
+
+    const upc = formData.get("upc");
+    const price = formData.get("price");
+
+    if (!upc || !price) {
+      this.addMessage("UPC and price are required", "danger");
+      return;
+    }
+
+    try {
+      const tx = await this.instance.setForSaleItem(upc, price, {
+        from: this.metamaskAccountID,
+      });
+
+      if (this.isDebug()) {
+        console.log(tx);
+      }
+
+      this.addMessage(`Transaction hash: ${tx.tx}`, "success");
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  handleBuy = async (event) => {
+    event.preventDefault();
+
+    this.clearMessages();
+
+    const formData = new FormData(event.target);
+
+    const upc = formData.get("upc");
+
+    if (!upc) {
+      this.addMessage("UPC is required", "danger");
+      return;
+    }
+
+    try {
+      const { price } = await this.getItemInfo(upc);
+
+      if (this.isDebug()) {
+        console.log("price", price.toString());
+      }
+
+      if (!price) {
+        this.addMessage("Price is not set", "danger");
+        return;
+      }
+
+      // Convert to wei
+      const value = Web3.utils.toWei(price.toString(), "ether");
+
+      if (this.isDebug()) {
+        console.log("value", value);
+      }
+
+      const tx = await this.instance.buyItem(upc, {
+        value,
+        from: this.metamaskAccountID,
+      });
+
+      if (this.isDebug()) {
+        console.log(tx);
+      }
+
+      this.addMessage(`Transaction hash: ${tx.tx}`, "success");
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  handleShip = async (event) => {
+    event.preventDefault();
+
+    this.clearMessages();
+
+    const formData = new FormData(event.target);
+
+    const upc = formData.get("upc");
+
+    if (!upc) {
+      this.addMessage("UPC is required", "danger");
+      return;
+    }
+
+    try {
+      const tx = await this.instance.shipItem(upc, {
+        from: this.metamaskAccountID,
+      });
+
+      if (this.isDebug()) {
+        console.log(tx);
+      }
+
+      this.addMessage(`Transaction hash: ${tx.tx}`, "success");
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  handleReceive = async (event) => {
+    event.preventDefault();
+
+    this.clearMessages();
+
+    const formData = new FormData(event.target);
+
+    const upc = formData.get("upc");
+
+    if (!upc) {
+      this.addMessage("UPC is required", "danger");
+      return;
+    }
+
+    try {
+      const tx = await this.instance.receiveItem(upc, {
+        from: this.metamaskAccountID,
+      });
+
+      if (this.isDebug()) {
+        console.log(tx);
+      }
+
+      this.addMessage(`Transaction hash: ${tx.tx}`, "success");
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
+  };
+
+  handlePurchase = async (event) => {
+    event.preventDefault();
+
+    this.clearMessages();
+
+    const formData = new FormData(event.target);
+
+    const upc = formData.get("upc");
+
+    if (!upc) {
+      this.addMessage("UPC is required", "danger");
+      return;
+    }
+
+    try {
+      const { price } = await this.getItemInfo(upc);
+
+      if (this.isDebug()) {
+        console.log("price", price.toString());
+      }
+
+      if (this.isDebug()) {
+        console.log("price", price);
+      }
+
+      if (!price) {
+        this.addMessage("Price is not set", "danger");
+        return;
+      }
+
+      // Convert to wei
+      const value = Web3.utils.toWei(price.toString(), "ether");
+
+      if (this.isDebug()) {
+        console.log("value", value);
+      }
+
+      const tx = await this.instance.purchaseItem(upc, {
+        value,
+        from: this.metamaskAccountID,
+      });
+
+      if (this.isDebug()) {
+        console.log(tx);
+      }
+
+      this.addMessage(`Transaction hash: ${tx.tx}`, "success");
+    } catch (error) {
+      this.addMessage(error.message ?? "Unknown error", "danger");
+      console.error(error);
+    }
   };
 
   handleAssignRole = async (event) => {
@@ -196,220 +601,69 @@ class App {
     }
   };
 
-  handleButtonClick = async (event) => {
-    event.preventDefault();
+  figureStatusLabel = (status) => {
+    switch (status) {
+      case this.statuses.Harvested:
+        return "Harvested";
+      case this.statuses.Processed:
+        return "Processed";
+      case this.statuses.Packed:
+        return "Packed";
+      case this.statuses.ForSale:
+        return "For Sale";
+      case this.statuses.Sold:
+        return "Sold";
+      case this.statuses.Shipped:
+        return "Shipped";
+      case this.statuses.Received:
+        return "Received";
+      case this.statuses.Purchased:
+        return "Purchased";
+      default:
+        if (this.isDebug()) {
+          console.log("figureStatusLabel", status);
+        }
 
-    const action = $(event.target).data("action");
-
-    if (!action) {
-      return;
-    }
-
-    try {
-      switch (action) {
-        case "harvest":
-          await this.harvestItem(event);
-          break;
-        case "process":
-          await this.processItem(event);
-          break;
-        case "pack":
-          await this.packItem(event);
-          break;
-        case "sell":
-          await this.sellItem(event);
-          break;
-        case "buy":
-          await this.buyItem(event);
-          break;
-        case "ship":
-          await this.shipItem(event);
-          break;
-        case "receive":
-          await this.receiveItem(event);
-          break;
-        case "purchase":
-          await this.purchaseItem(event);
-          break;
-        case "fetchData1":
-          await this.fetchItemBufferOne(event);
-          break;
-        case "fetchData2":
-          await this.fetchItemBufferTwo(event);
-          break;
-        default:
-          console.warn(`No handler for action: ${action}`);
-          break;
-      }
-    } catch (error) {
-      this.addMessage(error.message ?? "Unknown error", "danger");
-      console.error(error);
+        return "Unknown";
     }
   };
 
-  harvestItem = async (event) => {
-    event.preventDefault();
-
-    const form = document.getElementById("farmDetails");
-
-    const formData = new FormData(form);
-
-    // const upc = $("#upc").val();
-    const originFarmName = formData.get("originFarmName");
-    const originFarmInformation = formData.get("originFarmInformation");
-    const originFarmLatitude = formData.get("originFarmLatitude");
-    const originFarmLongitude = formData.get("originFarmLongitude");
-    const productNotes = formData.get("productNotes");
-
-    // this.upc = upc;
-    this.originFarmName = originFarmName;
-    this.originFarmInformation = originFarmInformation;
-    this.originFarmLatitude = originFarmLatitude;
-    this.originFarmLongitude = originFarmLongitude;
-    this.productNotes = productNotes;
-
-    const tx = await this.instance.harvestItem(
-      this.upc,
-      this.farmerAddress,
-      originFarmName,
-      originFarmInformation,
-      originFarmLatitude,
-      originFarmLongitude,
-      productNotes
-    );
-
-    console.log(tx);
-
-    this.addMessage(`Transaction hash: ${tx.tx}`, "success");
-  };
-
-  processItem = async (event) => {
-    event.preventDefault();
-
-    const upc = $("#upc").val();
-
-    await this.instance.processItem(upc);
-
-    $("#ftc-item").text(`UPC: ${upc}`);
-  };
-
-  packItem = async (event) => {
-    event.preventDefault();
-
-    const upc = $("#upc").val();
-
-    await this.instance.packItem(upc);
-
-    $("#ftc-item").text(`UPC: ${upc}`);
-  };
-
-  sellItem = async (event) => {
-    event.preventDefault();
-
-    const upc = $("#upc").val();
-    const productPrice = Web3.utils.toWei($("#productPrice").val(), "ether");
-
-    await this.instance.sellItem(upc, productPrice);
-
-    $("#ftc-item").text(`UPC: ${upc}`);
-  };
-
-  buyItem = async (event) => {
-    event.preventDefault();
-
-    const upc = $("#upc").val();
-    const productPrice = Web3.utils.toWei($("#productPrice").val(), "ether");
-
-    const tx = await this.instance.buyItem(upc, {
-      value: productPrice,
-    });
-
-    console.log(tx);
-
-    // addItemToHistory(upc, tx.hash);
-
-    $("#ftc-item").text(`UPC: ${upc}`);
-  };
-
-  shipItem = async (event) => {
-    event.preventDefault();
-
-    const upc = $("#upc").val();
-
-    await this.instance.shipItem(upc);
-
-    $("#ftc-item").text(`UPC: ${upc}`);
-  };
-
-  receiveItem = async (event) => {
-    event.preventDefault();
-
-    const upc = $("#upc").val();
-
-    await this.instance.receiveItem(upc);
-
-    $("#ftc-item").text(`UPC: ${upc}`);
-  };
-
-  purchaseItem = async (event) => {
-    event.preventDefault();
-
-    const upc = $("#upc").val();
-
-    await this.instance.purchaseItem(upc);
-
-    $("#ftc-item").text(`UPC: ${upc}`);
-  };
-
-  fetchItemBufferOne = async (event) => {
-    event.preventDefault();
-
-    const form = document.getElementById("productCheck");
-
-    const formData = new FormData(form);
-
-    const upc = formData.get("productUpc");
-
-    const result = await this.instance.fetchItemBufferOne(upc);
-
-    console.log(result);
-
-    // const $el = $("#ftc-item");
-    //
-    // $el.text(`UPC: ${upc}`);
-    // $el.append(`<li>SKU: ${result[0]}</li>`);
-    // $el.append(`<li>UPC: ${result[1]}</li>`);
-    // $el.append(`<li>Owner ID: ${result[2]}</li>`);
-    // $el.append(`<li>Origin Farmer ID: ${result[3]}</li>`);
-    // $el.append(`<li>Origin Farm Name: ${result[4]}</li>`);
-    // $el.append(`<li>Origin Farm Information: ${result[5]}</li>`);
-    // $el.append(`<li>Origin Farm Latitude: ${result[6]}</li>`);
-    // $el.append(`<li>Origin Farm Longitude: ${result[7]}</li>`);
-  };
-
-  fetchItemBufferTwo = async (event) => {
-    event.preventDefault();
-
-    const form = document.getElementById("productCheck");
-
-    const formData = new FormData(form);
-
-    const upc = formData.get("productUpc");
-
+  getItemInfo = async (upc) => {
     const result = await this.instance.fetchItemBufferTwo(upc);
 
-    console.log(result);
+    return {
+      sku: result[0],
+      upc: result[1],
+      id: result[2],
+      notes: result[3],
+      price: result[4],
+      status: result[5],
+      distributor: result[6],
+      retailer: result[7],
+      consumer: result[8],
+    };
+  };
 
-    // $el.text(`UPC: ${upc}`);
-    // $el.append(`<li>SKU: ${result[0]}</li>`);
-    // $el.append(`<li>UPC: ${result[1]}</li>`);
-    // $el.append(`<li>Product ID: ${result[2]}</li>`);
-    // $el.append(`<li>Product Notes: ${result[3]}</li>`);
-    // $el.append(`<li>Product Price: ${result[4]}</li>`);
-    // $el.append(`<li>Item State: ${result[5]}</li>`);
-    // $el.append(`<li>Distributor ID: ${result[6]}</li>`);
-    // $el.append(`<li>Retailer ID: ${result[7]}</li>`);
-    // $el.append(`<li>Consumer ID: ${result[8]}</li>`);
+  getTransactionHistory = async () => {
+    const response = await this.instance.getPastEvents("allEvents", {
+      fromBlock: 0,
+      toBlock: "latest",
+    });
+
+    if (this.isDebug()) {
+      console.log(response);
+    }
+
+    const events = response.reverse();
+
+    return events.map((event) => {
+      return {
+        name: event.event,
+        transactionHash: event.transactionHash,
+        blockNumber: event.blockNumber,
+        returnValues: event.returnValues,
+      };
+    });
   };
 }
 
