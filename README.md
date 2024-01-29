@@ -110,3 +110,12 @@ See also the list of [contributors](https://github.com/your/project/contributors
 * Ganache-cli
 * Truffle
 * IPFS
+
+## Contract Address
+>0xB477538ad5c0472F69d5B3A9bbaC3627F8dBdEA8
+
+The contract can also be found on [Etherscan](https://sepolia.etherscan.io/tx/0x1be08d573df07a01189896dd418b6899b6ad5a0aae19729d94adfdaa9952fa17).
+
+## Owner
+>0xA625435DaD4Cba3fe616FF7702d89DFFA992520f
+
