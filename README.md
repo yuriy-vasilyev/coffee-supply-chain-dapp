@@ -111,6 +111,14 @@ See also the list of [contributors](https://github.com/your/project/contributors
 * Truffle
 * IPFS
 
+## UML Diagrams
+* Activity Diagram
+* Sequence Diagram
+* State Diagram
+
+## Libraries
+* OpenZeppelin that includes Ownable.sol and AccessControl.sol
+
 ## Contract Address
 >0xB477538ad5c0472F69d5B3A9bbaC3627F8dBdEA8
 
